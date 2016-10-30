@@ -11,7 +11,7 @@
         android:text="Finish"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/finish_button"
+        android:id="@+id/finishButton"
         android:textSize="18sp"
         android:visibility="invisible"
         android:onClick="onFinishTap"
@@ -19,42 +19,73 @@
         android:layout_alignParentEnd="true"
         android:layout_marginBottom="42dp" />
 
-    <Button
-        android:text="Driver\nrequesting rider"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/request_rider_button"
-        style="@style/Widget.AppCompat.Button.Colored"
-        android:elevation="5dp"
-        android:onClick="onDriverRequestRiderTap"
-        android:textSize="24sp"
-        android:layout_below="@+id/request_driver_button"
-        android:layout_alignStart="@+id/request_driver_button" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/request_driver_button"
-        style="@style/Widget.AppCompat.Button.Colored"
-        android:onClick="onRiderRequestDriverTap"
-        android:elevation="5dp"
-        android:textSize="24sp"
-        android:text="Rider requesting\ndriver"
-        android:layout_marginTop="20dp"
-        android:layout_below="@+id/top_text"
-        android:layout_centerHorizontal="true" />
-
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Noober is the free Uber."
         android:textAppearance="@style/TextAppearance.AppCompat.Headline"
         android:textSize="18sp"
-        android:id="@+id/top_text"
+        android:id="@+id/topText"
         android:layout_alignParentTop="true"
         android:layout_alignParentStart="true"
         android:layout_marginStart="14dp"
         android:layout_marginTop="9dp" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="text"
+        android:text="defaultUserId"
+        android:ems="10"
+        android:layout_below="@+id/topText"
+        android:layout_alignStart="@+id/topText"
+        android:id="@+id/userIdEditText" />
+
+    <ProgressBar
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true"
+        android:id="@+id/progressBar"
+        android:visibility="invisible" />
+
+    <Button
+        android:text="Driver\nrequesting rider"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/requestRiderButton"
+        style="@style/Widget.AppCompat.Button.Colored"
+        android:elevation="5dp"
+        android:onClick="onDriverRequestRiderTap"
+        android:textSize="24sp"
+        android:layout_below="@+id/userIdEditText"
+        android:layout_centerHorizontal="true" />
+
+    <Button
+        android:text="Cancel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/finishButton"
+        android:layout_alignParentEnd="true"
+        android:layout_marginBottom="7dp"
+        android:id="@+id/cancelButton"
+        android:visibility="visible"
+        android:onClick="onCancelTap" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/requestDriverButton"
+        style="@style/Widget.AppCompat.Button.Colored"
+        android:onClick="onRiderRequestDriverTap"
+        android:elevation="5dp"
+        android:textSize="24sp"
+        android:text="Rider requesting\ndriver"
+        android:layout_below="@+id/requestRiderButton"
+        android:layout_alignStart="@+id/requestRiderButton"
+        android:layout_marginTop="8dp" />
+
 
     <org.osmdroid.views.MapView android:id="@+id/map"
         android:layout_width="match_parent"

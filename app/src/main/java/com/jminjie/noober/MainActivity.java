@@ -5,14 +5,18 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,6 +29,7 @@ import com.android.volley.toolbox.Volley;
 
 import org.json.JSONObject;
 import org.osmdroid.api.IMapController;
+import org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
@@ -36,20 +41,28 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
-    private Button mRequestDriverButton, mRequestRiderButton, mFinishButton;
+    private Button mRequestDriverButton, mRequestRiderButton, mFinishButton, mCancelButton;
     private TextView mTopText;
+    private EditText mUserIdEditText;
     private MapView mMapView;
+    private MyLocationNewOverlay mLocationOverlay;
+    private ProgressBar mProgressBar;
 
+    private Animation mSlideLeftAnimation, mSlideRightAnimation = null;
+
+    private Handler mHandler;
+    private Runnable mRepeatRequest;
     private RequestQueue mRequestQueue;
     private IMapController mMapController;
+
     final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 0;
     final int PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1;
     final int PERMISSIONS_REQUEST_MULTIPLE = 2;
+
+    final String SERVER_URL = "http://jminjie.com:5000/noober/";
     final String TAG = "MainActivity";
 
-    private MyLocationNewOverlay mLocationOverlay;
-
-    private Animation mSlideLeftAnimation, mSlideRightAnimation = null;
+    private Integer mDebugCount = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,13 +70,19 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // get the buttons
-        mRequestDriverButton = (Button) findViewById(R.id.request_driver_button);
-        mRequestRiderButton = (Button) findViewById(R.id.request_rider_button);
-        mFinishButton = (Button) findViewById(R.id.finish_button);
-        mTopText = (TextView) findViewById(R.id.top_text);
+        mRequestDriverButton = (Button) findViewById(R.id.requestDriverButton);
+        mRequestRiderButton = (Button) findViewById(R.id.requestRiderButton);
+        mFinishButton = (Button) findViewById(R.id.finishButton);
+        mCancelButton = (Button) findViewById(R.id.cancelButton);
+        mTopText = (TextView) findViewById(R.id.topText);
+        mUserIdEditText = (EditText) findViewById(R.id.userIdEditText);
+        mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
 
         // init the request queue
         mRequestQueue = Volley.newRequestQueue(this);
+
+        // handler for delayed repeated requests
+        mHandler = new Handler();
 
         // load animations
         mSlideLeftAnimation = AnimationUtils.loadAnimation(getApplicationContext(),
@@ -72,7 +91,8 @@ public class MainActivity extends AppCompatActivity {
                 R.anim.slide_right_animation);
 
         // set up osm
-        org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants.setUserAgentValue(BuildConfig.APPLICATION_ID);
+        OpenStreetMapTileProviderConstants.setUserAgentValue(
+                BuildConfig.APPLICATION_ID);
         mMapView = (MapView) findViewById(R.id.map);
         mMapView.setTileSource(TileSourceFactory.MAPNIK);
         mMapView.setBuiltInZoomControls(true);
@@ -118,8 +138,9 @@ public class MainActivity extends AppCompatActivity {
             new Response.Listener<JSONObject>() {
                 @Override
                 public void onResponse(JSONObject response) {
-                    // Display the first 20 characters of the response string.
+                    // Display the response string
                     mTopText.setText(response.toString());
+                    mProgressBar.setVisibility(View.GONE);
                 }
             };
 
@@ -129,28 +150,44 @@ public class MainActivity extends AppCompatActivity {
      */
     private Response.Listener<JSONObject> riderResponseListener =
             new Response.Listener<JSONObject>() {
-                @Override
-                public void onResponse(JSONObject response) {
-                    Log.d(TAG, "onResponse called");
-                    mTopText.setText(response.toString());
-                    // Show the returned rider's location on the map
-                    try {
-                        GeoPoint riderGeoPoint = new GeoPoint(response.getDouble("lat"), response.getDouble("lon"));
-                        final OverlayItem riderLocationOverlayItem = new OverlayItem("", "", riderGeoPoint);
-                        ArrayList<OverlayItem> overlayItemList = new ArrayList<>();
-                        overlayItemList.add(riderLocationOverlayItem);
-                        ItemizedIconOverlay<OverlayItem> myOverlay =
-                                new ItemizedIconOverlay<>(overlayItemList,
-                                        null, getApplicationContext());
+        @Override
+        public void onResponse(JSONObject response) {
+            Log.d(TAG, "onResponse");
+            mTopText.setText(response.toString());
+            // Show the returned rider's location on the map
+            try {
+                final boolean matched = response.getBoolean("matched");
+                if (matched) {
+                    mProgressBar.setVisibility(View.GONE);
+                    final GeoPoint riderGeoPoint = new GeoPoint(response.getDouble("lat"),
+                            response.getDouble("lon"));
+                    final OverlayItem riderLocationOverlayItem = new OverlayItem("", "",
+                            riderGeoPoint);
+                    ArrayList<OverlayItem> overlayItems = new ArrayList<>();
+                    overlayItems.add(riderLocationOverlayItem);
+                    final ItemizedIconOverlay<OverlayItem> overlay =
+                            new ItemizedIconOverlay<>(overlayItems, null, getApplicationContext());
 
-                        mMapView.getOverlays().add(myOverlay);
-                        mMapController.animateTo(riderGeoPoint);
-                    } catch (Exception e) {
-                        Log.e(TAG, e.getMessage());
-                        mTopText.setText("Exception in riderResponseListener");
-                    }
+                    mMapView.getOverlays().add(overlay);
+                    mMapController.animateTo(riderGeoPoint);
                 }
-            };
+                // wait 2 seconds and then put another request
+                mTopText.setText("Sending request #" + mDebugCount.toString());
+                mDebugCount += 1;
+                mRepeatRequest = new Runnable() {
+                    public void run() {
+                        final Location currentLocation = getBestLocation();
+                        sendDriverOrRiderRequest("rider", currentLocation.getLatitude(),
+                                currentLocation.getLongitude());
+                    }
+                };
+                mHandler.postDelayed(mRepeatRequest, 2000);
+            } catch (Exception e) {
+                Log.e(TAG, e.getMessage());
+                mTopText.setText(e.getMessage());
+            }
+        }
+    };
 
     /**
      * Define the behavior upon receiving an error from the server
@@ -158,7 +195,7 @@ public class MainActivity extends AppCompatActivity {
     private Response.ErrorListener responseErrorListener = new Response.ErrorListener() {
         @Override
         public void onErrorResponse(VolleyError error) {
-            mTopText.setText("Error from server");
+            mTopText.setText("responseErrorListener " + error);
         }
     };
 
@@ -170,9 +207,10 @@ public class MainActivity extends AppCompatActivity {
      * @param lon = the user's longitude
      */
     private void sendDriverOrRiderRequest(String driverOrRider, Double lat, Double lon) {
-        // form the url as "server/<driver_or_rider>?coords=<lat,lon>
-        String coords = lat.toString() + "," + lon.toString();
-        String url = "http://jminjie.com:5000/noober/" + driverOrRider + "?coords=" + coords;
+        // form the url
+        final String coords = lat.toString() + "," + lon.toString();
+        String url = SERVER_URL + driverOrRider + "?coords=" + coords
+                + "&userid=" + mUserIdEditText.getText().toString();
         Log.d(TAG, "Sent GET to " + url);
 
         // create the request
@@ -191,7 +229,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Get the best location available
-     * @return
+     * @return a Location object with the best available location data
      */
     private Location getBestLocation() {
         Location bestLocation = mLocationOverlay.getLastFix();
@@ -211,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * This function should be called if a rider is requesting a driver by tapping the button
      * Sends the user's location to server/driver
-     * @param v
+     * @param v the view in which the button is pushed
      */
     public void onRiderRequestDriverTap(View v) {
         // Show the toast
@@ -223,13 +261,15 @@ public class MainActivity extends AppCompatActivity {
         disableRequestButtons();
         showFinishButton();
 
+        // Turn on progress bar
+        mProgressBar.setVisibility(View.VISIBLE);
+
         // Send request for a driver
         Location userLocation = getBestLocation();
         if (userLocation != null) {
             // show the user overlay
             double currentLatitude = userLocation.getLatitude();
             double currentLongitude = userLocation.getLongitude();
-            Log.d(TAG, "onRiderRequestDriverTap animating to current loc: " + currentLatitude + " " + currentLongitude);
             GeoPoint currentGeoPoint = new GeoPoint(currentLatitude, currentLongitude);
             mMapController.setZoom(23);
             mMapController.animateTo(currentGeoPoint);
@@ -240,7 +280,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * This function should be called if a driver is requesting a rider by tapping the button
      * Sends the user's location to server/rider
-     * @param v
+     * @param v the view in which the button is pushed
      */
     public void onDriverRequestRiderTap(View v) {
         // Show the toast
@@ -251,6 +291,9 @@ public class MainActivity extends AppCompatActivity {
         // Hide request buttons and reveal finish button
         disableRequestButtons();
         showFinishButton();
+
+        // Turn on progress bar
+        mProgressBar.setVisibility(View.VISIBLE);
 
         // Send request for a driver
         Location userLocation = getBestLocation();
@@ -266,6 +309,8 @@ public class MainActivity extends AppCompatActivity {
      * This animation is defined in app/res/anim/slide_left_animation.xml
      */
     private void showFinishButton() {
+        if (mFinishButton.getVisibility() == View.VISIBLE)
+            return;
         mFinishButton.startAnimation(mSlideLeftAnimation);
         mFinishButton.setVisibility(View.VISIBLE);
     }
@@ -275,14 +320,41 @@ public class MainActivity extends AppCompatActivity {
      * This animation is defined in app/res/anim/slide_right_animation.xml
      */
     private void hideFinishButton() {
+        if (mFinishButton.getVisibility() != View.VISIBLE)
+            return;
         mFinishButton.startAnimation(mSlideRightAnimation);
         mFinishButton.setVisibility(View.INVISIBLE);
     }
 
     /**
+     * Cancels pending outgoing request and sends a request to the server to remove the user from
+     * the queue
+     * This function should be called when the cancel button is
+     * tapped
+     * @param v the view in which the button is pushed
+     */
+    public void onCancelTap(View v) {
+        // first cancel pending request
+        mHandler.removeCallbacks(mRepeatRequest);
+        // then send request to server to remove user from queue
+        String url = SERVER_URL + "cancel?userid=" + mUserIdEditText.getText().toString();
+        Log.d(TAG, "Sent GET to " + url);
+
+        // create the request
+        JsonObjectRequest stringRequest = new JsonObjectRequest(Request.Method.GET, url, null,
+                    null, responseErrorListener);
+        // add the request to the RequestQueue to be sent automatically
+        mRequestQueue.add(stringRequest);
+
+        mProgressBar.setVisibility(View.GONE);
+        onFinishTap(v);
+    }
+
+
+    /**
      * Enables a driver or rider finished with a trip to make more requests. This function should be
      * called when the finish button is tapped
-     * @param v
+     * @param v the view in which the button is pushed
      */
     public void onFinishTap(View v) {
         enableRequestButtons();
@@ -322,13 +394,14 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Handle the permissions request response. If the permission is granted, continue running the
      * app. Otherwise, close the app immediately.
-     * @param requestCode
-     * @param permissions
-     * @param grantResults
+     * @param requestCode the code passed in to requestPermission
+     * @param permissions which permissions were requested
+     * @param grantResults corresponding array of PERMISSION_GRANTED | PERMISSION_DENIED
      */
     @Override
     public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
+                                           @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
         switch (requestCode) {
             case PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE:
                 // intentional fall through
