@@ -41,7 +41,7 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
-    private Button mRequestDriverButton, mRequestRiderButton, mFinishButton, mCancelButton;
+    private Button mRequestDriverButton, mRequestRiderButton, mFinishButton;
     private TextView mTopText;
     private EditText mUserIdEditText;
     private MapView mMapView;
@@ -73,7 +73,6 @@ public class MainActivity extends AppCompatActivity {
         mRequestDriverButton = (Button) findViewById(R.id.requestDriverButton);
         mRequestRiderButton = (Button) findViewById(R.id.requestRiderButton);
         mFinishButton = (Button) findViewById(R.id.finishButton);
-        mCancelButton = (Button) findViewById(R.id.cancelButton);
         mTopText = (TextView) findViewById(R.id.topText);
         mUserIdEditText = (EditText) findViewById(R.id.userIdEditText);
         mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
@@ -131,28 +130,71 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Define the behavior upon receiving a successful response to a rider requesting driver
-     * from the server as a JSONObject
+     * Upon receiving a successful response to rider requesting driver:
+     *   If the response says we have a match, show the match on the map together with the user
+     *     and remove the progress bar
+     *   If the response says we have no match, remove the match from the map and display the
+     *     progress bar
+     *   In 2 seconds send another request with a location update
      */
     private Response.Listener<JSONObject> driverResponseListener =
             new Response.Listener<JSONObject>() {
-                @Override
-                public void onResponse(JSONObject response) {
-                    // Display the response string
-                    mTopText.setText(response.toString());
+        @Override
+        public void onResponse(JSONObject response) {
+            Log.d(TAG, "driverResponseListener.onResponse");
+            mTopText.setText(response.toString());
+            // Show the returned driver's location on the map
+            try {
+                final boolean matched = response.getBoolean("matched");
+                if (matched) {
                     mProgressBar.setVisibility(View.GONE);
+                    final GeoPoint driverGeoPoint = new GeoPoint(response.getDouble("lat"),
+                            response.getDouble("lon"));
+                    final OverlayItem driverLocationOverlayItem = new OverlayItem("Your driver", "",
+                            driverGeoPoint);
+                    driverLocationOverlayItem.setMarker(getDrawable(R.drawable.direction_arrow));
+                    ArrayList<OverlayItem> overlayItems = new ArrayList<>();
+                    overlayItems.add(driverLocationOverlayItem);
+                    final ItemizedIconOverlay<OverlayItem> overlay =
+                            new ItemizedIconOverlay<>(overlayItems, null, getApplicationContext());
+
+                    mMapView.getOverlays().add(overlay);
+                    // TODO show the driver and the user together on the map
+                    mMapController.animateTo(driverGeoPoint);
+                } else {
+                    mMapView.getOverlays().clear();
+                    mProgressBar.setVisibility(View.VISIBLE);
                 }
-            };
+                // wait 2 seconds and then put another request
+                mTopText.setText("Sending request #" + mDebugCount.toString());
+                mDebugCount += 1;
+                mRepeatRequest = new Runnable() {
+                    public void run() {
+                        final Location currentLocation = getBestLocation();
+                        sendDriverOrRiderRequest("driver", currentLocation.getLatitude(),
+                                currentLocation.getLongitude());
+                    }
+                };
+                mHandler.postDelayed(mRepeatRequest, 2000);
+            } catch (Exception e) {
+                Log.e(TAG, e.getMessage());
+                mTopText.setText(e.getMessage());
+            }
+        }
+    };
 
     /**
-     * Define the behavior upon receiving a successful response to driver requesting rider
-     * from the server as a JSONObject
+     * Upon receiving a successful response to driver requesting rider:
+     *   If the response says we have a match, show the match on the map and remove the progress bar
+     *   If the response says we have no match, remove the match from the map and display the
+     *     progress bar
+     *   In 2 seconds send another request with a location update
      */
     private Response.Listener<JSONObject> riderResponseListener =
             new Response.Listener<JSONObject>() {
         @Override
         public void onResponse(JSONObject response) {
-            Log.d(TAG, "onResponse");
+            Log.d(TAG, "riderResponseListener.onResponse");
             mTopText.setText(response.toString());
             // Show the returned rider's location on the map
             try {
@@ -161,7 +203,7 @@ public class MainActivity extends AppCompatActivity {
                     mProgressBar.setVisibility(View.GONE);
                     final GeoPoint riderGeoPoint = new GeoPoint(response.getDouble("lat"),
                             response.getDouble("lon"));
-                    final OverlayItem riderLocationOverlayItem = new OverlayItem("", "",
+                    final OverlayItem riderLocationOverlayItem = new OverlayItem("Your rider", "",
                             riderGeoPoint);
                     ArrayList<OverlayItem> overlayItems = new ArrayList<>();
                     overlayItems.add(riderLocationOverlayItem);
@@ -170,6 +212,9 @@ public class MainActivity extends AppCompatActivity {
 
                     mMapView.getOverlays().add(overlay);
                     mMapController.animateTo(riderGeoPoint);
+                } else {
+                    mMapView.getOverlays().clear();
+                    mProgressBar.setVisibility(View.VISIBLE);
                 }
                 // wait 2 seconds and then put another request
                 mTopText.setText("Sending request #" + mDebugCount.toString());
@@ -182,6 +227,29 @@ public class MainActivity extends AppCompatActivity {
                     }
                 };
                 mHandler.postDelayed(mRepeatRequest, 2000);
+            } catch (Exception e) {
+                Log.e(TAG, e.getMessage());
+                mTopText.setText(e.getMessage());
+            }
+        }
+    };
+
+    /**
+     * Upon receiving a successful response to cancelling, verify that the server has returned
+     * matched = false response
+     */
+    private Response.Listener<JSONObject> cancelResponseListener =
+            new Response.Listener<JSONObject>() {
+        @Override
+        public void onResponse(JSONObject response) {
+            Log.d(TAG, "cancelResponseListener.onResponse");
+            mTopText.setText(response.toString());
+            // Show the returned rider's location on the map
+            try {
+                final boolean matched = response.getBoolean("matched");
+                if (matched == true) {
+                    throw new Exception("Couldn't cancel request.");
+                }
             } catch (Exception e) {
                 Log.e(TAG, e.getMessage());
                 mTopText.setText(e.getMessage());
@@ -328,9 +396,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Cancels pending outgoing request and sends a request to the server to remove the user from
-     * the queue
-     * This function should be called when the cancel button is
-     * tapped
+     * the queue. This function should be called when the cancel button is tapped
      * @param v the view in which the button is pushed
      */
     public void onCancelTap(View v) {
@@ -342,7 +408,7 @@ public class MainActivity extends AppCompatActivity {
 
         // create the request
         JsonObjectRequest stringRequest = new JsonObjectRequest(Request.Method.GET, url, null,
-                    null, responseErrorListener);
+                    cancelResponseListener, responseErrorListener);
         // add the request to the RequestQueue to be sent automatically
         mRequestQueue.add(stringRequest);
 
@@ -357,6 +423,7 @@ public class MainActivity extends AppCompatActivity {
      * @param v the view in which the button is pushed
      */
     public void onFinishTap(View v) {
+        // TODO at some point we can be finished polling
         enableRequestButtons();
         hideFinishButton();
     }
