@@ -7,18 +7,6 @@
 
     tools:context="com.jminjie.noober.MainActivity">
 
-    <Button
-        android:text="Finish"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/finishButton"
-        android:textSize="18sp"
-        android:visibility="invisible"
-        android:onClick="onFinishTap"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginBottom="42dp" />
-
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -35,7 +23,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:inputType="text"
-        android:text="defaultUserId"
+        android:text="defaultRiderId"
         android:ems="10"
         android:layout_below="@+id/topText"
         android:layout_alignStart="@+id/topText"
@@ -51,14 +39,15 @@
         android:visibility="invisible" />
 
     <Button
-        android:text="Driver\nrequesting rider"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/requestRiderButton"
+        android:id="@+id/requestDriverButton"
         style="@style/Widget.AppCompat.Button.Colored"
+        android:onClick="onRequestNooberTap"
         android:elevation="5dp"
-        android:onClick="onDriverRequestRiderTap"
         android:textSize="24sp"
+        android:text="Request a Noober"
+        android:layout_marginTop="23dp"
         android:layout_below="@+id/userIdEditText"
         android:layout_centerHorizontal="true" />
 
@@ -66,25 +55,12 @@
         android:text="Cancel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/finishButton"
-        android:layout_alignParentEnd="true"
-        android:layout_marginBottom="7dp"
+        android:layout_marginBottom="46dp"
         android:id="@+id/cancelButton"
-        android:visibility="visible"
-        android:onClick="onCancelTap" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/requestDriverButton"
-        style="@style/Widget.AppCompat.Button.Colored"
-        android:onClick="onRiderRequestDriverTap"
-        android:elevation="5dp"
-        android:textSize="24sp"
-        android:text="Rider requesting\ndriver"
-        android:layout_below="@+id/requestRiderButton"
-        android:layout_alignStart="@+id/requestRiderButton"
-        android:layout_marginTop="8dp" />
+        android:visibility="invisible"
+        android:onClick="onCancelTap"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true" />
 
 
     <org.osmdroid.views.MapView android:id="@+id/map"

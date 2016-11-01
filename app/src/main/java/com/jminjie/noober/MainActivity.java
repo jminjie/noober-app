@@ -41,9 +41,9 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
-    private Button mRequestDriverButton, mRequestRiderButton, mFinishButton;
+    private Button mRequestNooberButton, mCancelButton;
     private TextView mTopText;
-    private EditText mUserIdEditText;
+    private EditText mRiderIdEditText;
     private MapView mMapView;
     private MyLocationNewOverlay mLocationOverlay;
     private ProgressBar mProgressBar;
@@ -70,11 +70,10 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // get the buttons
-        mRequestDriverButton = (Button) findViewById(R.id.requestDriverButton);
-        mRequestRiderButton = (Button) findViewById(R.id.requestRiderButton);
-        mFinishButton = (Button) findViewById(R.id.finishButton);
+        mRequestNooberButton = (Button) findViewById(R.id.requestDriverButton);
+        mCancelButton = (Button) findViewById(R.id.cancelButton);
         mTopText = (TextView) findViewById(R.id.topText);
-        mUserIdEditText = (EditText) findViewById(R.id.userIdEditText);
+        mRiderIdEditText = (EditText) findViewById(R.id.userIdEditText);
         mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
 
         // init the request queue
@@ -112,25 +111,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Disable the two request buttons. This function should be called when either request is made
-     * so that duplicate requests are not sent by the user
-     */
-    private void disableRequestButtons() {
-        mRequestDriverButton.setEnabled(false);
-        mRequestRiderButton.setEnabled(false);
-    }
-
-    /**
-     * Enable the two request buttons. This function should be called when a trip is finished to
-     * allow the user to make the next request
-     */
-    private void enableRequestButtons() {
-        mRequestDriverButton.setEnabled(true);
-        mRequestRiderButton.setEnabled(true);
-    }
-
-    /**
-     * Upon receiving a successful response to rider requesting driver:
+     * Upon receiving a successful response to a request for a Noober:
      *   If the response says we have a match, show the match on the map together with the user
      *     and remove the progress bar
      *   If the response says we have no match, remove the match from the map and display the
@@ -171,7 +152,7 @@ public class MainActivity extends AppCompatActivity {
                 mRepeatRequest = new Runnable() {
                     public void run() {
                         final Location currentLocation = getBestLocation();
-                        sendDriverOrRiderRequest("driver", currentLocation.getLatitude(),
+                        sendDriverRequest("driver", currentLocation.getLatitude(),
                                 currentLocation.getLongitude());
                     }
                 };
@@ -183,56 +164,6 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    /**
-     * Upon receiving a successful response to driver requesting rider:
-     *   If the response says we have a match, show the match on the map and remove the progress bar
-     *   If the response says we have no match, remove the match from the map and display the
-     *     progress bar
-     *   In 2 seconds send another request with a location update
-     */
-    private Response.Listener<JSONObject> riderResponseListener =
-            new Response.Listener<JSONObject>() {
-        @Override
-        public void onResponse(JSONObject response) {
-            Log.d(TAG, "riderResponseListener.onResponse");
-            mTopText.setText(response.toString());
-            // Show the returned rider's location on the map
-            try {
-                final boolean matched = response.getBoolean("matched");
-                if (matched) {
-                    mProgressBar.setVisibility(View.GONE);
-                    final GeoPoint riderGeoPoint = new GeoPoint(response.getDouble("lat"),
-                            response.getDouble("lon"));
-                    final OverlayItem riderLocationOverlayItem = new OverlayItem("Your rider", "",
-                            riderGeoPoint);
-                    ArrayList<OverlayItem> overlayItems = new ArrayList<>();
-                    overlayItems.add(riderLocationOverlayItem);
-                    final ItemizedIconOverlay<OverlayItem> overlay =
-                            new ItemizedIconOverlay<>(overlayItems, null, getApplicationContext());
-
-                    mMapView.getOverlays().add(overlay);
-                    mMapController.animateTo(riderGeoPoint);
-                } else {
-                    mMapView.getOverlays().clear();
-                    mProgressBar.setVisibility(View.VISIBLE);
-                }
-                // wait 2 seconds and then put another request
-                mTopText.setText("Sending request #" + mDebugCount.toString());
-                mDebugCount += 1;
-                mRepeatRequest = new Runnable() {
-                    public void run() {
-                        final Location currentLocation = getBestLocation();
-                        sendDriverOrRiderRequest("rider", currentLocation.getLatitude(),
-                                currentLocation.getLongitude());
-                    }
-                };
-                mHandler.postDelayed(mRepeatRequest, 2000);
-            } catch (Exception e) {
-                Log.e(TAG, e.getMessage());
-                mTopText.setText(e.getMessage());
-            }
-        }
-    };
 
     /**
      * Upon receiving a successful response to cancelling, verify that the server has returned
@@ -274,22 +205,17 @@ public class MainActivity extends AppCompatActivity {
      * @param lat = the user's latitude
      * @param lon = the user's longitude
      */
-    private void sendDriverOrRiderRequest(String driverOrRider, Double lat, Double lon) {
+    private void sendDriverRequest(String driverOrRider, Double lat, Double lon) {
         // form the url
         final String coords = lat.toString() + "," + lon.toString();
         String url = SERVER_URL + driverOrRider + "?coords=" + coords
-                + "&userid=" + mUserIdEditText.getText().toString();
+                + "&userid=" + mRiderIdEditText.getText().toString();
         Log.d(TAG, "Sent GET to " + url);
 
         // create the request
         JsonObjectRequest stringRequest = null;
-        if (driverOrRider.equals("driver")) {
-            stringRequest = new JsonObjectRequest(Request.Method.GET, url, null,
-                    driverResponseListener, responseErrorListener);
-        } else if (driverOrRider.equals("rider")) {
-            stringRequest = new JsonObjectRequest(Request.Method.GET, url, null,
-                    riderResponseListener, responseErrorListener);
-        }
+        stringRequest = new JsonObjectRequest(Request.Method.GET, url, null,
+                driverResponseListener, responseErrorListener);
 
         // add the request to the RequestQueue to be sent automatically
         mRequestQueue.add(stringRequest);
@@ -319,15 +245,15 @@ public class MainActivity extends AppCompatActivity {
      * Sends the user's location to server/driver
      * @param v the view in which the button is pushed
      */
-    public void onRiderRequestDriverTap(View v) {
+    public void onRequestNooberTap(View v) {
         // Show the toast
         Toast myToast = Toast.makeText(getApplicationContext(), "Requested Driver",
                 Toast.LENGTH_LONG);
         myToast.show();
 
         // Hide request buttons and reveal finish button
-        disableRequestButtons();
-        showFinishButton();
+        mRequestNooberButton.setEnabled(false);
+        showCancelButton();
 
         // Turn on progress bar
         mProgressBar.setVisibility(View.VISIBLE);
@@ -341,57 +267,31 @@ public class MainActivity extends AppCompatActivity {
             GeoPoint currentGeoPoint = new GeoPoint(currentLatitude, currentLongitude);
             mMapController.setZoom(23);
             mMapController.animateTo(currentGeoPoint);
-            sendDriverOrRiderRequest("driver", currentLatitude, currentLongitude);
+            sendDriverRequest("driver", currentLatitude, currentLongitude);
         }
     }
 
-    /**
-     * This function should be called if a driver is requesting a rider by tapping the button
-     * Sends the user's location to server/rider
-     * @param v the view in which the button is pushed
-     */
-    public void onDriverRequestRiderTap(View v) {
-        // Show the toast
-        Toast myToast = Toast.makeText(getApplicationContext(), "Requested Rider",
-                Toast.LENGTH_LONG);
-        myToast.show();
-
-        // Hide request buttons and reveal finish button
-        disableRequestButtons();
-        showFinishButton();
-
-        // Turn on progress bar
-        mProgressBar.setVisibility(View.VISIBLE);
-
-        // Send request for a driver
-        Location userLocation = getBestLocation();
-        if (userLocation != null) {
-            double currentLatitude = userLocation.getLatitude();
-            double currentLongitude = userLocation.getLongitude();
-            sendDriverOrRiderRequest("rider", currentLatitude, currentLongitude);
-        }
-    }
 
     /**
      * Slide the finish button into screen.
      * This animation is defined in app/res/anim/slide_left_animation.xml
      */
-    private void showFinishButton() {
-        if (mFinishButton.getVisibility() == View.VISIBLE)
+    private void showCancelButton() {
+        if (mCancelButton.getVisibility() == View.VISIBLE)
             return;
-        mFinishButton.startAnimation(mSlideLeftAnimation);
-        mFinishButton.setVisibility(View.VISIBLE);
+        mCancelButton.startAnimation(mSlideLeftAnimation);
+        mCancelButton.setVisibility(View.VISIBLE);
     }
 
     /**
      * Slide the finish button out of screen.
      * This animation is defined in app/res/anim/slide_right_animation.xml
      */
-    private void hideFinishButton() {
-        if (mFinishButton.getVisibility() != View.VISIBLE)
+    private void hideCancelButton() {
+        if (mCancelButton.getVisibility() != View.VISIBLE)
             return;
-        mFinishButton.startAnimation(mSlideRightAnimation);
-        mFinishButton.setVisibility(View.INVISIBLE);
+        mCancelButton.startAnimation(mSlideRightAnimation);
+        mCancelButton.setVisibility(View.INVISIBLE);
     }
 
     /**
@@ -403,7 +303,7 @@ public class MainActivity extends AppCompatActivity {
         // first cancel pending request
         mHandler.removeCallbacks(mRepeatRequest);
         // then send request to server to remove user from queue
-        String url = SERVER_URL + "cancel?userid=" + mUserIdEditText.getText().toString();
+        String url = SERVER_URL + "cancel?userid=" + mRiderIdEditText.getText().toString();
         Log.d(TAG, "Sent GET to " + url);
 
         // create the request
@@ -413,19 +313,8 @@ public class MainActivity extends AppCompatActivity {
         mRequestQueue.add(stringRequest);
 
         mProgressBar.setVisibility(View.GONE);
-        onFinishTap(v);
-    }
-
-
-    /**
-     * Enables a driver or rider finished with a trip to make more requests. This function should be
-     * called when the finish button is tapped
-     * @param v the view in which the button is pushed
-     */
-    public void onFinishTap(View v) {
-        // TODO at some point we can be finished polling
-        enableRequestButtons();
-        hideFinishButton();
+        mRequestNooberButton.setEnabled(true);
+        hideCancelButton();
     }
 
     private boolean accessFineLocationGranted() {
