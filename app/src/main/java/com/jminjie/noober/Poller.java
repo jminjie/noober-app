@@ -10,9 +10,9 @@ import org.json.JSONObject;
 
 /**
  * Created by jminjie on 2016-10-31.
- *
+ * <p>
  * The Poller is part of the application model. Use the constructor to set the userId source
- *
+ * <p>
  * Poller continuously polls the server based on the current state and calls the ViewStateController
  * to update the view based on the state.
  */
@@ -46,49 +46,50 @@ class Poller {
 
     // the current state of the rider
     private RiderState riderState = RiderState.IDLE;
+
     void setRiderState(RiderState state) {
         riderState = state;
     }
 
-    public Response.Listener<JSONObject> getRiderRequestingDriverResponseListener() {
+    Response.Listener<JSONObject> getRiderRequestingDriverResponseListener() {
         return kRiderRequestingDriverResponseListener;
     }
 
     /**
      * Upon receiving a successful response to a request for a Noober:
-     *   If the response says we have a match, show the match on the map together with the user
-     *     and remove the progress bar
-     *   If the response says we have no match, remove the match from the map and display the
-     *     progress bar
-     *   In 2 seconds send another request with a location update
+     * If the response says we have a match, show the match on the map together with the user
+     * and remove the progress bar
+     * If the response says we have no match, remove the match from the map and display the
+     * progress bar
+     * In 2 seconds send another request with a location update
      */
     private Response.Listener<JSONObject> kRiderRequestingDriverResponseListener =
-    new Response.Listener<JSONObject>() {
-        @Override
-        public void onResponse(JSONObject response) {
-        Log.d(TAG, "kRiderRequestingDriverResponseListener.onResponse");
-        mViewStateChanger.setTopText(response.toString());
-        // Show the returned driver's location on the map
-        try {
-            final boolean matched = response.getBoolean("matched");
-            if (matched) {
-                mViewStateChanger.setWaitingForPickup(response.getDouble("lat"),
-                        response.getDouble("lon"));
-                setRiderState(Poller.RiderState.WAITING_FOR_PICKUP);
-                startPolling();
-            } else {
-                mViewStateChanger.setWaitingForMatch();
-                setRiderState(Poller.RiderState.WAITING_FOR_MATCH);
-                startPolling();
-            }
-        } catch (Exception e) {
-            Log.e(TAG, e.getMessage());
-            mViewStateChanger.setTopText(e.getMessage());
-        }
-        }
-    };
+            new Response.Listener<JSONObject>() {
+                @Override
+                public void onResponse(JSONObject response) {
+                    Log.d(TAG, "kRiderRequestingDriverResponseListener.onResponse");
+                    mViewStateChanger.setTopText(response.toString());
+                    // Show the returned driver's location on the map
+                    try {
+                        final boolean matched = response.getBoolean("matched");
+                        if (matched) {
+                            mViewStateChanger.setWaitingForPickup(response.getDouble("lat"),
+                                    response.getDouble("lon"));
+                            setRiderState(Poller.RiderState.WAITING_FOR_PICKUP);
+                            doPoll();
+                        } else {
+                            mViewStateChanger.setWaitingForMatch();
+                            setRiderState(Poller.RiderState.WAITING_FOR_MATCH);
+                            doPoll();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, e.getMessage());
+                        mViewStateChanger.setTopText(e.getMessage());
+                    }
+                }
+            };
 
-    public Response.Listener<JSONObject> getRiderCancelResponseListener() {
+    Response.Listener<JSONObject> getRiderCancelResponseListener() {
         return kRiderCancelResponseListener;
     }
 
@@ -96,45 +97,47 @@ class Poller {
      * Upon receiving a successful response to cancelling, notify the user
      */
     private Response.Listener<JSONObject> kRiderCancelResponseListener =
-    new Response.Listener<JSONObject>() {
-        @Override
-        public void onResponse(JSONObject response) {
-        // update the view
-        mViewStateChanger.setIdle();
+            new Response.Listener<JSONObject>() {
+                @Override
+                public void onResponse(JSONObject response) {
+                    // update the view
+                    mViewStateChanger.setIdle();
 
-        // Show the toast
-        mViewStateChanger.showToast("Request cancelled");
-        }
-    };
+                    // Show the toast
+                    mViewStateChanger.showToast("Request cancelled");
+                }
+            };
 
     /**
      * Upon receiving a successful response to a request for a Noober:
-     *   If the response says we have a match, show the match on the map together with the user
-     *     and remove the progress bar
-     *   If the response says we have no match then do nothing
+     * If the response says we have a match, show the match on the map together with the user
+     * and remove the progress bar
+     * If the response says we have no match then do nothing
      */
     private Response.Listener<JSONObject> kRiderWaitingForMatchResponseListener =
             new Response.Listener<JSONObject>() {
-        @Override
-        public void onResponse(JSONObject response) {
-            Log.d(TAG, "kRiderWaitingForMatchResponseListener.onResponse");
-            try {
-                final boolean matched = response.getBoolean("matched");
-                if (matched) {
-                    mViewStateChanger.setWaitingForPickup(
-                            response.getDouble("lat"), response.getDouble("lon"));
-                    mViewStateChanger.setTopText(response.toString());
-                    setRiderState(Poller.RiderState.WAITING_FOR_PICKUP);
-                    // TODO: continue poll
-                } else {
-                    // TODO: continue poll
+                @Override
+                public void onResponse(JSONObject response) {
+                    Log.d(TAG, "kRiderWaitingForMatchResponseListener.onResponse");
+                    try {
+                        final boolean matched = response.getBoolean("matched");
+                        if (matched) {
+                            // change to waiting-for-pickup and continue polling
+                            mViewStateChanger.setWaitingForPickup(
+                                    response.getDouble("lat"), response.getDouble("lon"));
+                            mViewStateChanger.setTopText(response.toString());
+                            setRiderState(Poller.RiderState.WAITING_FOR_PICKUP);
+                            doPoll();
+                        } else {
+                            // don't change state, just continue polling
+                            doPoll();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, e.getMessage());
+                        mViewStateChanger.setTopText(e.getMessage());
+                    }
                 }
-            } catch (Exception e) {
-                Log.e(TAG, e.getMessage());
-                mViewStateChanger.setTopText(e.getMessage());
-            }
-        }
-    };
+            };
 
     // TODO: implement stubs
     private Response.Listener<JSONObject> kRiderWaitingForPickupResponseListener = null;
@@ -143,8 +146,8 @@ class Poller {
     /**
      * Start polling the server based on current state
      */
-    void startPolling() {
-        Log.d(TAG, "startPolling");
+    private void doPoll() {
+        Log.d(TAG, "doPoll");
         // wait 2 seconds and then send a request
         mViewStateChanger.setTopText("Sending request #" + mDebugCount.toString());
         mDebugCount += 1;

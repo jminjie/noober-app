@@ -14,19 +14,27 @@ import org.json.JSONObject;
 
 /**
  * Created by jminjie on 2016-10-31.
- *
+ * <p>
  * The Requester class is part of the application model. Use getInstance() to get the singleton
  * instance of the class and init(Context) before calling methods.
- *
+ * <p>
  * Requester sends requests to the server via Volley.RequestQueue
  */
 
 class Requester {
-    private RequestQueue mRequestQueue;
-    private final String TAG = "Requester";
-
     // singleton instance of Requester
     private static Requester s = null;
+    private final String TAG = "Requester";
+    private RequestQueue mRequestQueue;
+    /**
+     * Define the behavior upon receiving an error from the server
+     */
+    private Response.ErrorListener onErrorResponse = new Response.ErrorListener() {
+        @Override
+        public void onErrorResponse(VolleyError error) {
+            Log.d(TAG, "Error from the server");
+        }
+    };
 
     static Requester getInstance() {
         if (s == null) {
@@ -38,16 +46,6 @@ class Requester {
     void init(Context context) {
         mRequestQueue = Volley.newRequestQueue(context);
     }
-
-    /**
-     * Define the behavior upon receiving an error from the server
-     */
-    private Response.ErrorListener onErrorResponse = new Response.ErrorListener() {
-        @Override
-        public void onErrorResponse(VolleyError error) {
-            Log.d(TAG, "Error from the server");
-        }
-    };
 
     void addRequest(String url, Response.Listener<JSONObject> onResponse) {
         Log.d(TAG, "Sent GET to " + url);

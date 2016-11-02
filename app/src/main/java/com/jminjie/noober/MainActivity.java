@@ -5,20 +5,16 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.util.Log;
-import android.view.*;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import com.android.volley.Response;
-
-import org.json.JSONObject;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
@@ -71,6 +67,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Get the best location available
+     *
      * @return a Location object with the best available location data
      */
     private Location getBestLocation() {
@@ -90,6 +87,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * This function should be called if a rider is requesting a driver by tapping the button
      * Sends the user's location to server/driver
+     *
      * @param v the view in which the button is pushed
      */
     // TODO: Send the request with a set pickup location shown as overlay instead of user's location
@@ -114,6 +112,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Cancels pending outgoing request and sends a request to the server to remove the user from
      * the queue. This function should be called when the cancel button is tapped
+     *
      * @param v the view in which the button is pushed
      */
     public void onCancelTap(View v) {
@@ -140,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void promptUserForPermissions() {
         if (!accessFineLocationGranted() && !writeExternalStorageGranted()) {
-            ActivityCompat.requestPermissions(this, new String[] {
+            ActivityCompat.requestPermissions(this, new String[]{
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE
             }, PERMISSIONS_REQUEST_MULTIPLE);
@@ -158,8 +157,9 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Handle the permissions request response. If the permission is granted, continue running the
      * app. Otherwise, close the app immediately.
-     * @param requestCode the code passed in to requestPermission
-     * @param permissions which permissions were requested
+     *
+     * @param requestCode  the code passed in to requestPermission
+     * @param permissions  which permissions were requested
      * @param grantResults corresponding array of PERMISSION_GRANTED | PERMISSION_DENIED
      */
     @Override

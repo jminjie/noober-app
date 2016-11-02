@@ -10,11 +10,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.osmdroid.api.IMapController;
 import org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
-import org.osmdroid.api.IMapController;
-
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.ItemizedIconOverlay;
 import org.osmdroid.views.overlay.OverlayItem;
@@ -25,10 +24,10 @@ import java.util.ArrayList;
 
 /**
  * Created by jminjie on 2016-10-31.
- *
+ * <p>
  * The ViewStateChanger is part of the application presenter. Use getInstance() to get the singleton
  * instance of the class and call init() before calling methods to set the editable UI elements
- *
+ * <p>
  * ViewStateChanger provides methods for changing the view based on the model and user input
  */
 
@@ -49,6 +48,7 @@ class ViewStateChanger {
 
     /**
      * Get the singleton instance of the ViewStateChanger
+     *
      * @return the singleton instance
      */
     static ViewStateChanger getInstance() {
@@ -61,9 +61,9 @@ class ViewStateChanger {
     /**
      * Initialize the UI elements which can be changed by the ViewStateChanger
      */
-     void init(Button requestNooberbutton, Button cancelButton, MapView mapView,
-                     ProgressBar progressBar, IMapController mapController, TextView topText,
-                     Context context) {
+    void init(Button requestNooberbutton, Button cancelButton, MapView mapView,
+              ProgressBar progressBar, IMapController mapController, TextView topText,
+              Context context) {
         // set member variables
         mRequestNooberButton = requestNooberbutton;
         mCancelButton = cancelButton;
@@ -122,6 +122,7 @@ class ViewStateChanger {
 
     /**
      * Update the view to waiting-for-pickup state
+     *
      * @param lat the matched driver's latitude
      * @param lon the matched driver's longitude
      */
