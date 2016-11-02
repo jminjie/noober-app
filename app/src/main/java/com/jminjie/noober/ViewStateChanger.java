@@ -102,6 +102,15 @@ class ViewStateChanger {
     }
 
     /**
+     * Update the view to idle state
+     */
+    void setIdle() {
+        mProgressBar.setVisibility(View.GONE);
+        mRequestNooberButton.setEnabled(true);
+        hideCancelButton();
+    }
+
+    /**
      * Update the view to waiting-for-match state
      */
     void setWaitingForMatch() {
@@ -109,15 +118,6 @@ class ViewStateChanger {
         mRequestNooberButton.setEnabled(false);
         mMapView.getOverlays().clear();
         mProgressBar.setVisibility(View.VISIBLE);
-    }
-
-    /**
-     * Update the view to idle state
-     */
-    void setIdle() {
-        mProgressBar.setVisibility(View.GONE);
-        mRequestNooberButton.setEnabled(true);
-        hideCancelButton();
     }
 
     /**
@@ -142,6 +142,15 @@ class ViewStateChanger {
                 new ItemizedIconOverlay<>(overlayItems, null, mContext);
         mMapView.getOverlays().add(overlay);
         mMapController.animateTo(driverGeoPoint);
+    }
+
+    /**
+     * Update the view to waiting-for-dropoff state
+     *
+     */
+    void setWaitingForDropoff() {
+        hideCancelButton();
+        mMapView.getOverlays().clear();
     }
 
     void setTopText(String text) {

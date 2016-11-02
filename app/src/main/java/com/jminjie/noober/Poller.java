@@ -51,17 +51,18 @@ class Poller {
         riderState = state;
     }
 
+    Response.Listener<JSONObject> getRiderCancelResponseListener() {
+        return kRiderCancelResponseListener;
+    }
+
     Response.Listener<JSONObject> getRiderRequestingDriverResponseListener() {
         return kRiderRequestingDriverResponseListener;
     }
 
     /**
      * Upon receiving a successful response to a request for a Noober:
-     * If the response says we have a match, show the match on the map together with the user
-     * and remove the progress bar
-     * If the response says we have no match, remove the match from the map and display the
-     * progress bar
-     * In 2 seconds send another request with a location update
+     * If the response says we have a match, go to waiting-for-pickup state and update view
+     * If the response says we have no match, go to waiting-for-match state and update view
      */
     private Response.Listener<JSONObject> kRiderRequestingDriverResponseListener =
             new Response.Listener<JSONObject>() {
@@ -76,11 +77,11 @@ class Poller {
                             mViewStateChanger.setWaitingForPickup(response.getDouble("lat"),
                                     response.getDouble("lon"));
                             setRiderState(Poller.RiderState.WAITING_FOR_PICKUP);
-                            doPoll();
+                            doDelayedPoll();
                         } else {
                             mViewStateChanger.setWaitingForMatch();
                             setRiderState(Poller.RiderState.WAITING_FOR_MATCH);
-                            doPoll();
+                            doDelayedPoll();
                         }
                     } catch (Exception e) {
                         Log.e(TAG, e.getMessage());
@@ -89,9 +90,6 @@ class Poller {
                 }
             };
 
-    Response.Listener<JSONObject> getRiderCancelResponseListener() {
-        return kRiderCancelResponseListener;
-    }
 
     /**
      * Upon receiving a successful response to cancelling, notify the user
@@ -102,16 +100,14 @@ class Poller {
                 public void onResponse(JSONObject response) {
                     // update the view
                     mViewStateChanger.setIdle();
-
                     // Show the toast
                     mViewStateChanger.showToast("Request cancelled");
                 }
             };
 
     /**
-     * Upon receiving a successful response to a request for a Noober:
-     * If the response says we have a match, show the match on the map together with the user
-     * and remove the progress bar
+     * Upon receiving a successful response to a poll when waiting for match:
+     * If the response says we have a match, go to waiting-for-pickup state and update view
      * If the response says we have no match then do nothing
      */
     private Response.Listener<JSONObject> kRiderWaitingForMatchResponseListener =
@@ -127,10 +123,10 @@ class Poller {
                                     response.getDouble("lat"), response.getDouble("lon"));
                             mViewStateChanger.setTopText(response.toString());
                             setRiderState(Poller.RiderState.WAITING_FOR_PICKUP);
-                            doPoll();
+                            doDelayedPoll();
                         } else {
                             // don't change state, just continue polling
-                            doPoll();
+                            doDelayedPoll();
                         }
                     } catch (Exception e) {
                         Log.e(TAG, e.getMessage());
@@ -139,15 +135,58 @@ class Poller {
                 }
             };
 
-    // TODO: implement stubs
-    private Response.Listener<JSONObject> kRiderWaitingForPickupResponseListener = null;
+    /**
+     * Upon receiving a successful response to a poll when waiting for pickup:
+     * If the response says the driver cancelled, go to waiting-for-match state and update view
+     * If the response says we have been picked up, go to waiting-for-dropoff state and update view
+     * Otherwise do nothing
+     */
+    private Response.Listener<JSONObject> kRiderWaitingForPickupResponseListener =
+            new Response.Listener<JSONObject>() {
+                @Override
+                public void onResponse(JSONObject response) {
+                    Log.d(TAG, "kRiderWaitingForPickupResponseListener.onResponse");
+                    try {
+                        final boolean cancelled = response.getBoolean("cancelled");
+                        if (cancelled) {
+                            // change to waiting-for-match and continue polling
+                            mViewStateChanger.setWaitingForMatch();
+                            mViewStateChanger.setTopText(response.toString());
+                            setRiderState(RiderState.WAITING_FOR_MATCH);
+                            doDelayedPoll();
+                        } else {
+                            final boolean pickedUp = response.getBoolean("picked_up");
+                            if (pickedUp) {
+                                // change to waiting-for-dropoff and continue polling
+                                mViewStateChanger.setWaitingForDropoff();
+                                mViewStateChanger.setTopText(response.toString());
+                                setRiderState(RiderState.WAITING_FOR_DROPOFF);
+                                doDelayedPoll();
+                            } else {
+                                // don't change state, just continue polling
+                                doDelayedPoll();
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, e.getMessage());
+                        mViewStateChanger.setTopText(e.getMessage());
+                    }
+                }
+            };
+
+    /**
+     * Upon receiving a successful response to a poll when waiting for dropoff:
+     * If the response says we have been dropped off, go to idle state and update view
+     * Otherwise do nothing
+     */
+    // TODO: implement stub
     private Response.Listener<JSONObject> kRiderWaitingForDropoffResponseListener = null;
 
     /**
-     * Start polling the server based on current state
+     * Poll the server based on current state
      */
-    private void doPoll() {
-        Log.d(TAG, "doPoll");
+    private void doDelayedPoll() {
+        Log.d(TAG, "doDelayedPoll");
         // wait 2 seconds and then send a request
         mViewStateChanger.setTopText("Sending request #" + mDebugCount.toString());
         mDebugCount += 1;
