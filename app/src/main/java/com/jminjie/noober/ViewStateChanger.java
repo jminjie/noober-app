@@ -8,6 +8,7 @@ import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -25,13 +26,13 @@ import java.util.ArrayList;
 /**
  * Created by jminjie on 2016-10-31.
  *
- * The ViewStateChanger is the application presenter. Use getInstance() to get the singleton
+ * The ViewStateChanger is part of the application presenter. Use getInstance() to get the singleton
  * instance of the class and call init() before calling methods to set the editable UI elements
  *
  * ViewStateChanger provides methods for changing the view based on the model and user input
  */
 
-public class ViewStateChanger {
+class ViewStateChanger {
     // s is the singleton instance
     private static ViewStateChanger s = null;
 
@@ -44,13 +45,13 @@ public class ViewStateChanger {
     private MyLocationNewOverlay mLocationOverlay;
     private TextView mTopText;
     private Animation mSlideLeftAnimation, mSlideRightAnimation = null;
-    final Drawable DRAWABLE_DIRECTION_ARROW = null;
+    private final Drawable DRAWABLE_DIRECTION_ARROW = null;
 
     /**
      * Get the singleton instance of the ViewStateChanger
      * @return the singleton instance
      */
-    public static ViewStateChanger getInstance() {
+    static ViewStateChanger getInstance() {
         if (s == null) {
             s = new ViewStateChanger();
         }
@@ -60,7 +61,7 @@ public class ViewStateChanger {
     /**
      * Initialize the UI elements which can be changed by the ViewStateChanger
      */
-    public void init(Button requestNooberbutton, Button cancelButton, MapView mapView,
+     void init(Button requestNooberbutton, Button cancelButton, MapView mapView,
                      ProgressBar progressBar, IMapController mapController, TextView topText,
                      Context context) {
         // set member variables
@@ -96,14 +97,14 @@ public class ViewStateChanger {
     /**
      * @return the MyLocationNewOverlay
      */
-    public MyLocationNewOverlay getMyLocationNewOverlay() {
+    MyLocationNewOverlay getMyLocationNewOverlay() {
         return mLocationOverlay;
     }
 
     /**
      * Update the view to waiting-for-match state
      */
-    public void setWaitingForMatch() {
+    void setWaitingForMatch() {
         showCancelButton();
         mRequestNooberButton.setEnabled(false);
         mMapView.getOverlays().clear();
@@ -113,7 +114,7 @@ public class ViewStateChanger {
     /**
      * Update the view to idle state
      */
-    public void setIdle() {
+    void setIdle() {
         mProgressBar.setVisibility(View.GONE);
         mRequestNooberButton.setEnabled(true);
         hideCancelButton();
@@ -125,7 +126,7 @@ public class ViewStateChanger {
      * @param lon the matched driver's longitude
      */
     // TODO show the driver and the user together on the map
-    public void setWaitingForPickup(double lat, double lon) {
+    void setWaitingForPickup(double lat, double lon) {
         // Hide the progress bar from WaitingForMatch view state
         mProgressBar.setVisibility(View.GONE);
 
@@ -137,13 +138,18 @@ public class ViewStateChanger {
         ArrayList<OverlayItem> overlayItems = new ArrayList<>();
         overlayItems.add(driverLocationOverlayItem);
         final ItemizedIconOverlay<OverlayItem> overlay =
-                new ItemizedIconOverlay<OverlayItem>(overlayItems, null, mContext);
+                new ItemizedIconOverlay<>(overlayItems, null, mContext);
         mMapView.getOverlays().add(overlay);
         mMapController.animateTo(driverGeoPoint);
     }
 
-    public void setTopText(String text) {
+    void setTopText(String text) {
         mTopText.setText(text);
+    }
+
+    void showToast(String text) {
+        Toast myToast = Toast.makeText(mContext, text, Toast.LENGTH_LONG);
+        myToast.show();
     }
 
     /**

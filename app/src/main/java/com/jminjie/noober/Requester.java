@@ -21,21 +21,21 @@ import org.json.JSONObject;
  * Requester sends requests to the server via Volley.RequestQueue
  */
 
-public class Requester {
+class Requester {
     private RequestQueue mRequestQueue;
-    final String TAG = "Requester";
+    private final String TAG = "Requester";
 
     // singleton instance of Requester
     private static Requester s = null;
 
-    public static Requester getInstance() {
+    static Requester getInstance() {
         if (s == null) {
             s = new Requester();
         }
         return s;
     }
 
-    public void init(Context context) {
+    void init(Context context) {
         mRequestQueue = Volley.newRequestQueue(context);
     }
 
@@ -49,7 +49,7 @@ public class Requester {
         }
     };
 
-    public void addRequest(String url, Response.Listener<JSONObject> onResponse) {
+    void addRequest(String url, Response.Listener<JSONObject> onResponse) {
         Log.d(TAG, "Sent GET to " + url);
 
         // create the request object

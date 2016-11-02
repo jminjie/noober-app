@@ -15,7 +15,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.android.volley.Response;
 
@@ -25,7 +24,6 @@ import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 public class MainActivity extends AppCompatActivity {
-    private TextView mTopText;
     private EditText mUserIdEditText;
     private MyLocationNewOverlay mLocationOverlay;
 
@@ -46,7 +44,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // get the view components
-        mTopText = (TextView) findViewById(R.id.topText);
         mUserIdEditText = (EditText) findViewById(R.id.userIdEditText);
 
         // initialize the requester
@@ -57,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
         mPoller = new Poller(mUserIdEditText);
 
         // init viewStateChanger
+        final TextView mTopText = (TextView) findViewById(R.id.topText);
         final Button requestNooberButton = (Button) findViewById(R.id.requestDriverButton);
         final Button cancelButton = (Button) findViewById(R.id.cancelButton);
         final ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressBar);
@@ -70,58 +68,6 @@ public class MainActivity extends AppCompatActivity {
         // verify permissions
         promptUserForPermissions();
     }
-
-    /**
-     * Upon receiving a successful response to a request for a Noober:
-     *   If the response says we have a match, show the match on the map together with the user
-     *     and remove the progress bar
-     *   If the response says we have no match, remove the match from the map and display the
-     *     progress bar
-     *   In 2 seconds send another request with a location update
-     */
-    private Response.Listener<JSONObject> kRiderRequestingDriverResponseListener =
-            new Response.Listener<JSONObject>() {
-        @Override
-        public void onResponse(JSONObject response) {
-            Log.d(TAG, "kRiderRequestingDriverResponseListener.onResponse");
-            mTopText.setText(response.toString());
-            // Show the returned driver's location on the map
-            try {
-                final boolean matched = response.getBoolean("matched");
-                if (matched) {
-                    mViewStateChanger.setWaitingForPickup(response.getDouble("lat"),
-                            response.getDouble("lon"));
-                    mPoller.setRiderState(Poller.RiderState.WAITING_FOR_PICKUP);
-                    mPoller.startPolling();
-                } else {
-                    mViewStateChanger.setWaitingForMatch();
-                    mPoller.setRiderState(Poller.RiderState.WAITING_FOR_MATCH);
-                    mPoller.startPolling();
-                }
-            } catch (Exception e) {
-                Log.e(TAG, e.getMessage());
-                mTopText.setText(e.getMessage());
-            }
-        }
-    };
-
-    /**
-     * Upon receiving a successful response to cancelling, notify the user
-     */
-    private Response.Listener<JSONObject> kRiderCancelResponseListener =
-            new Response.Listener<JSONObject>() {
-        @Override
-        public void onResponse(JSONObject response) {
-            Log.d(TAG, "kRiderCancelResponseListener.onResponse");
-            // update the view
-            mViewStateChanger.setIdle();
-
-            // Show the toast
-            Toast myToast = Toast.makeText(getApplicationContext(), "Request cancelled",
-                    Toast.LENGTH_LONG);
-            myToast.show();
-        }
-    };
 
     /**
      * Get the best location available
@@ -149,9 +95,7 @@ public class MainActivity extends AppCompatActivity {
     // TODO: Send the request with a set pickup location shown as overlay instead of user's location
     public void onRequestNooberTap(View v) {
         // Show the toast
-        Toast myToast = Toast.makeText(getApplicationContext(), "Request sent",
-                Toast.LENGTH_LONG);
-        myToast.show();
+        mViewStateChanger.showToast("Request sent");
 
         Location userLocation = getBestLocation();
         if (userLocation != null) {
@@ -160,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
             Double lon = userLocation.getLongitude();
             String url = SERVER_URL + "rider_app?lat=" + lat.toString() + "&lon=" + lon.toString()
                     + "&user_id=" + mUserIdEditText.getText().toString();
-            mRequester.addRequest(url, kRiderRequestingDriverResponseListener);
+            mRequester.addRequest(url, mPoller.getRiderRequestingDriverResponseListener());
         }
 
         // update the view
@@ -178,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
 
         // send request to server to remove user from queue
         String url = SERVER_URL + "cancel?userid=" + mUserIdEditText.getText().toString();
-        mRequester.addRequest(url, kRiderCancelResponseListener);
+        mRequester.addRequest(url, mPoller.getRiderCancelResponseListener());
     }
 
     private boolean accessFineLocationGranted() {
@@ -232,10 +176,8 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             case PERMISSIONS_REQUEST_MULTIPLE: {
-                if (grantResults.length == 2 && grantResults[0] == PackageManager.PERMISSION_GRANTED
-                        && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
-                    return;
-                } else {
+                if (grantResults.length != 2 || grantResults[0] != PackageManager.PERMISSION_GRANTED
+                        || grantResults[1] != PackageManager.PERMISSION_GRANTED) {
                     finish();
                 }
             }

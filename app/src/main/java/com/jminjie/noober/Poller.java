@@ -12,23 +12,24 @@ import org.json.JSONObject;
  * Created by jminjie on 2016-10-31.
  *
  * The Poller is part of the application model. Use the constructor to set the userId source
- * (TODO: eventually userId will be stored on login so that this does not interact with the view)
  *
  * Poller continuously polls the server based on the current state and calls the ViewStateController
  * to update the view based on the state.
  */
 
-public class Poller {
+class Poller {
+    //(TODO: eventually userId will be stored on login so that this does not interact with the view)
     private EditText mUserIdEditText;
+
     private Handler mHandler;
     private Runnable mPollingRequest;
     private ViewStateChanger mViewStateChanger;
 
-    final String TAG = "Poller";
+    private final String TAG = "Poller";
     private Integer mDebugCount = 0;
 
     // polling interval in milliseconds
-    final int POLLING_INTERVAL = 2000;
+    private final int POLLING_INTERVAL = 2000;
 
     Poller(EditText userIdEditText) {
         mUserIdEditText = userIdEditText;
@@ -36,7 +37,7 @@ public class Poller {
         mViewStateChanger = ViewStateChanger.getInstance();
     }
 
-    public enum RiderState {
+    enum RiderState {
         IDLE,
         WAITING_FOR_MATCH,
         WAITING_FOR_PICKUP,
@@ -45,9 +46,66 @@ public class Poller {
 
     // the current state of the rider
     private RiderState riderState = RiderState.IDLE;
-    public void setRiderState(RiderState state) {
+    void setRiderState(RiderState state) {
         riderState = state;
     }
+
+    public Response.Listener<JSONObject> getRiderRequestingDriverResponseListener() {
+        return kRiderRequestingDriverResponseListener;
+    }
+
+    /**
+     * Upon receiving a successful response to a request for a Noober:
+     *   If the response says we have a match, show the match on the map together with the user
+     *     and remove the progress bar
+     *   If the response says we have no match, remove the match from the map and display the
+     *     progress bar
+     *   In 2 seconds send another request with a location update
+     */
+    private Response.Listener<JSONObject> kRiderRequestingDriverResponseListener =
+    new Response.Listener<JSONObject>() {
+        @Override
+        public void onResponse(JSONObject response) {
+        Log.d(TAG, "kRiderRequestingDriverResponseListener.onResponse");
+        mViewStateChanger.setTopText(response.toString());
+        // Show the returned driver's location on the map
+        try {
+            final boolean matched = response.getBoolean("matched");
+            if (matched) {
+                mViewStateChanger.setWaitingForPickup(response.getDouble("lat"),
+                        response.getDouble("lon"));
+                setRiderState(Poller.RiderState.WAITING_FOR_PICKUP);
+                startPolling();
+            } else {
+                mViewStateChanger.setWaitingForMatch();
+                setRiderState(Poller.RiderState.WAITING_FOR_MATCH);
+                startPolling();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, e.getMessage());
+            mViewStateChanger.setTopText(e.getMessage());
+        }
+        }
+    };
+
+    public Response.Listener<JSONObject> getRiderCancelResponseListener() {
+        return kRiderCancelResponseListener;
+    }
+
+    /**
+     * Upon receiving a successful response to cancelling, notify the user
+     */
+    private Response.Listener<JSONObject> kRiderCancelResponseListener =
+    new Response.Listener<JSONObject>() {
+        @Override
+        public void onResponse(JSONObject response) {
+        // update the view
+        mViewStateChanger.setIdle();
+
+        // Show the toast
+        mViewStateChanger.showToast("Request cancelled");
+        }
+    };
 
     /**
      * Upon receiving a successful response to a request for a Noober:
@@ -85,7 +143,8 @@ public class Poller {
     /**
      * Start polling the server based on current state
      */
-    public void startPolling() {
+    void startPolling() {
+        Log.d(TAG, "startPolling");
         // wait 2 seconds and then send a request
         mViewStateChanger.setTopText("Sending request #" + mDebugCount.toString());
         mDebugCount += 1;
