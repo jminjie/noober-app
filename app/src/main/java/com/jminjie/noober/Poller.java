@@ -179,8 +179,28 @@ class Poller {
      * If the response says we have been dropped off, go to idle state and update view
      * Otherwise do nothing
      */
-    // TODO: implement stub
-    private Response.Listener<JSONObject> kRiderWaitingForDropoffResponseListener = null;
+    private Response.Listener<JSONObject> kRiderWaitingForDropoffResponseListener =
+            new Response.Listener<JSONObject>() {
+                @Override
+                public void onResponse(JSONObject response) {
+                    Log.d(TAG, "kRiderWaitingForDropoffResponseListener.onResponse");
+                    try {
+                        final boolean droppedOff = response.getBoolean("dropped_off");
+                        if (droppedOff) {
+                            // change to idle and stop polling
+                            mViewStateChanger.setIdle();
+                            mViewStateChanger.setTopText(response.toString());
+                            setRiderState(RiderState.IDLE);
+                        } else {
+                            // don't change state, just continue polling
+                            doDelayedPoll();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, e.getMessage());
+                        mViewStateChanger.setTopText(e.getMessage());
+                    }
+                }
+            };
 
     /**
      * Poll the server based on current state
@@ -211,7 +231,8 @@ class Poller {
                     + mUserIdEditText.getText() + "&type=103";
             Requester.getInstance().addRequest(url, kRiderWaitingForDropoffResponseListener);
         } else {
-            stopPolling();
+            // don't poll in idle state
+            return;
         }
         mHandler.postDelayed(mPollingRequest, POLLING_INTERVAL);
     }
@@ -219,7 +240,7 @@ class Poller {
     /**
      * Stop polling the server
      */
-    private void stopPolling() {
+    public void stopPolling() {
         mHandler.removeCallbacks(mPollingRequest);
     }
 

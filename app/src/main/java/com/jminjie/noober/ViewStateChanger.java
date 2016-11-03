@@ -1,7 +1,13 @@
 package com.jminjie.noober;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
+import android.location.LocationManager;
+import android.support.v4.app.ActivityCompat;
+import android.util.Log;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
@@ -32,6 +38,8 @@ import java.util.ArrayList;
  */
 
 class ViewStateChanger {
+    private final String TAG = "ViewStateChanger";
+
     // s is the singleton instance
     private static ViewStateChanger s = null;
 
@@ -64,6 +72,7 @@ class ViewStateChanger {
     void init(Button requestNooberbutton, Button cancelButton, MapView mapView,
               ProgressBar progressBar, IMapController mapController, TextView topText,
               Context context) {
+        Log.d(TAG, "init");
         // set member variables
         mRequestNooberButton = requestNooberbutton;
         mCancelButton = cancelButton;
@@ -74,6 +83,7 @@ class ViewStateChanger {
         mContext = context;
 
         // configure mapView
+        Log.d(TAG, "init configure mapView");
         OpenStreetMapTileProviderConstants.setUserAgentValue(BuildConfig.APPLICATION_ID);
         mMapView.setTileSource(TileSourceFactory.MAPNIK);
         mMapView.setBuiltInZoomControls(true);
@@ -81,13 +91,18 @@ class ViewStateChanger {
         mMapView.setTilesScaledToDpi(true);
 
         // create user location overlay
+        Log.d(TAG, "init create MyLocationNewOverlay");
         this.mLocationOverlay = new MyLocationNewOverlay(new GpsMyLocationProvider(context), mapView);
         this.mLocationOverlay.enableMyLocation();
         mMapView.getOverlays().add(this.mLocationOverlay);
+
+        // zoom and center on user location
         mMapController.setZoom(17);
-        mMapController.setCenter(mLocationOverlay.getMyLocation());
+        Location bestLocation = MainActivity.getBestLocation(context, mLocationOverlay);
+        mMapController.setCenter(new GeoPoint(bestLocation));
 
         // load animations
+        Log.d(TAG, "init load animations");
         mSlideLeftAnimation = AnimationUtils.loadAnimation(mContext,
                 R.anim.slide_left_animation);
         mSlideRightAnimation = AnimationUtils.loadAnimation(mContext,
@@ -100,6 +115,9 @@ class ViewStateChanger {
     MyLocationNewOverlay getMyLocationNewOverlay() {
         return mLocationOverlay;
     }
+
+
+    MapView getMapView() { return mMapView; }
 
     /**
      * Update the view to idle state

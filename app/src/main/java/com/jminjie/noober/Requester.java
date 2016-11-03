@@ -43,6 +43,7 @@ class Requester {
         return s;
     }
 
+    // use the context to get a requestQueue
     void init(Context context) {
         mRequestQueue = Volley.newRequestQueue(context);
     }

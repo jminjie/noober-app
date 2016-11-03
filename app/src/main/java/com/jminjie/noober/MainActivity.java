@@ -9,19 +9,21 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import org.osmdroid.api.IGeoPoint;
 import org.osmdroid.api.IMapController;
+import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 public class MainActivity extends AppCompatActivity {
     private EditText mUserIdEditText;
-    private MyLocationNewOverlay mLocationOverlay;
 
     private Requester mRequester;
     private Poller mPoller;
@@ -43,13 +45,16 @@ public class MainActivity extends AppCompatActivity {
         mUserIdEditText = (EditText) findViewById(R.id.userIdEditText);
 
         // initialize the requester
+        Log.d(TAG, "onCreate initialize mRequester");
         mRequester = Requester.getInstance();
         mRequester.init(getApplicationContext());
 
         // poller to periodically poll server for updates
+        Log.d(TAG, "onCreate initialize mPoller");
         mPoller = new Poller(mUserIdEditText);
 
         // init viewStateChanger
+        Log.d(TAG, "onCreate initialize mViewStateChanger");
         final TextView mTopText = (TextView) findViewById(R.id.topText);
         final Button requestNooberButton = (Button) findViewById(R.id.requestDriverButton);
         final Button cancelButton = (Button) findViewById(R.id.cancelButton);
@@ -59,10 +64,12 @@ public class MainActivity extends AppCompatActivity {
         mViewStateChanger = ViewStateChanger.getInstance();
         mViewStateChanger.init(requestNooberButton, cancelButton, mapView, progressBar,
                 mapController, mTopText, getApplicationContext());
-        mLocationOverlay = mViewStateChanger.getMyLocationNewOverlay();
 
         // verify permissions
+        Log.d(TAG, "onCreate getPermissions");
         promptUserForPermissions();
+
+        Log.d(TAG, "onCreate finished");
     }
 
     /**
@@ -70,14 +77,16 @@ public class MainActivity extends AppCompatActivity {
      *
      * @return a Location object with the best available location data
      */
-    private Location getBestLocation() {
-        Location bestLocation = mLocationOverlay.getLastFix();
+    public static Location getBestLocation(Context context, MyLocationNewOverlay locationOverlay) {
+        Location bestLocation = locationOverlay.getLastFix();
         if (bestLocation == null) {
             LocationManager locationManager =
-                    (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
                     != PackageManager.PERMISSION_GRANTED) {
-                return null;
+                Log.e("MainActivity", "(static) getBestLocation");
+                bestLocation.setLatitude(40.0);
+                bestLocation.setLongitude(120.);
             }
             return locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
         }
@@ -86,27 +95,25 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * This function should be called if a rider is requesting a driver by tapping the button
-     * Sends the user's location to server/driver
+     * Sends the pickup location to server
      *
      * @param v the view in which the button is pushed
      */
-    // TODO: Send the request with a set pickup location shown as overlay instead of user's location
     public void onRequestNooberTap(View v) {
+        Log.d(TAG, "onRequestNooberTap");
         // Show the toast
         mViewStateChanger.showToast("Request sent");
 
-        Location userLocation = getBestLocation();
+        Location userLocation = getBestLocation(this, mViewStateChanger.getMyLocationNewOverlay());
         if (userLocation != null) {
             // Send kRiderRequestingDriver (type 100)
-            Double lat = userLocation.getLatitude();
-            Double lon = userLocation.getLongitude();
+            IGeoPoint mapCenter = mViewStateChanger.getMapView().getMapCenter();
+            Double lat = mapCenter.getLatitude();
+            Double lon = mapCenter.getLongitude();
             String url = SERVER_URL + "rider_app?lat=" + lat.toString() + "&lon=" + lon.toString()
                     + "&user_id=" + mUserIdEditText.getText().toString();
             mRequester.addRequest(url, mPoller.getRiderRequestingDriverResponseListener());
         }
-
-        // update the view
-        mViewStateChanger.setWaitingForMatch();
     }
 
     /**
@@ -118,6 +125,7 @@ public class MainActivity extends AppCompatActivity {
     public void onCancelTap(View v) {
         // stop polling
         mPoller.setRiderState(Poller.RiderState.IDLE);
+        mPoller.stopPolling();
 
         // send request to server to remove user from queue
         String url = SERVER_URL + "cancel?userid=" + mUserIdEditText.getText().toString();
