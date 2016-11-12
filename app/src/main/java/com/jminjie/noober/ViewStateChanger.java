@@ -162,6 +162,10 @@ class ViewStateChanger {
         mMapController.animateTo(driverGeoPoint);
     }
 
+    public void addOverlayToMap(GeoPoint point) {
+
+    }
+
     /**
      * Update the view to waiting-for-dropoff state
      *

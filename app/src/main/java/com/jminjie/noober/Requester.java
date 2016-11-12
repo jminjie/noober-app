@@ -32,7 +32,8 @@ class Requester {
     private Response.ErrorListener onErrorResponse = new Response.ErrorListener() {
         @Override
         public void onErrorResponse(VolleyError error) {
-            Log.d(TAG, "Error from the server");
+            Log.e(TAG, "Error from the server");
+            Log.e(TAG, error.toString());
         }
     };
 

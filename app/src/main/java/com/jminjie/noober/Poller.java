@@ -213,7 +213,7 @@ class Poller {
         if (riderState == RiderState.WAITING_FOR_MATCH) {
             mPollingRequest = new Runnable() {
                 public void run() {
-                    String url = MainActivity.SERVER_URL + "rider_app?user_id="
+                    String url = MainActivity.SERVER_URL + "?user_id="
                             + mUserIdEditText.getText() + "&type=101";
                     Requester.getInstance().addRequest(url, kRiderWaitingForMatchResponseListener);
                 }
@@ -221,13 +221,13 @@ class Poller {
         } else if (riderState == RiderState.WAITING_FOR_PICKUP) {
             mPollingRequest = new Runnable() {
                 public void run() {
-                    String url = MainActivity.SERVER_URL + "rider_app?user_id="
+                    String url = MainActivity.SERVER_URL + "?user_id="
                             + mUserIdEditText.getText() + "&type=102";
                     Requester.getInstance().addRequest(url, kRiderWaitingForPickupResponseListener);
                 }
             };
         } else if (riderState == RiderState.WAITING_FOR_DROPOFF) {
-            String url = MainActivity.SERVER_URL + "rider_app?user_id="
+            String url = MainActivity.SERVER_URL + "?user_id="
                     + mUserIdEditText.getText() + "&type=103";
             Requester.getInstance().addRequest(url, kRiderWaitingForDropoffResponseListener);
         } else {

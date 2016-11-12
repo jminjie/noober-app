@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
     final int PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1;
     final int PERMISSIONS_REQUEST_MULTIPLE = 2;
 
-    public static final String SERVER_URL = "http://jminjie.com:5000/noober/";
+    public static final String SERVER_URL = "http://jminjie.com:5000/noober/rider_app";
     final String TAG = "MainActivity";
 
     @Override
@@ -104,13 +104,14 @@ public class MainActivity extends AppCompatActivity {
         // Show the toast
         mViewStateChanger.showToast("Request sent");
 
+        mViewStateChanger.getMapView().getOverlays().clear();
         Location userLocation = getBestLocation(this, mViewStateChanger.getMyLocationNewOverlay());
         if (userLocation != null) {
             // Send kRiderRequestingDriver (type 100)
             IGeoPoint mapCenter = mViewStateChanger.getMapView().getMapCenter();
             Double lat = mapCenter.getLatitude();
             Double lon = mapCenter.getLongitude();
-            String url = SERVER_URL + "rider_app?lat=" + lat.toString() + "&lon=" + lon.toString()
+            String url = SERVER_URL + "?type=100&lat=" + lat.toString() + "&lon=" + lon.toString()
                     + "&user_id=" + mUserIdEditText.getText().toString();
             mRequester.addRequest(url, mPoller.getRiderRequestingDriverResponseListener());
         }
@@ -128,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
         mPoller.stopPolling();
 
         // send request to server to remove user from queue
-        String url = SERVER_URL + "cancel?userid=" + mUserIdEditText.getText().toString();
+        String url = SERVER_URL + "?type=104&userid=" + mUserIdEditText.getText().toString();
         mRequester.addRequest(url, mPoller.getRiderCancelResponseListener());
     }
 
