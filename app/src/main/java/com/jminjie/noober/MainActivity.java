@@ -105,16 +105,13 @@ public class MainActivity extends AppCompatActivity {
         mViewStateChanger.showToast("Request sent");
 
         mViewStateChanger.getMapView().getOverlays().clear();
-        Location userLocation = getBestLocation(this, mViewStateChanger.getMyLocationNewOverlay());
-        if (userLocation != null) {
-            // Send kRiderRequestingDriver (type 100)
-            IGeoPoint mapCenter = mViewStateChanger.getMapView().getMapCenter();
-            Double lat = mapCenter.getLatitude();
-            Double lon = mapCenter.getLongitude();
-            String url = SERVER_URL + "?type=100&lat=" + lat.toString() + "&lon=" + lon.toString()
-                    + "&user_id=" + mUserIdEditText.getText().toString();
-            mRequester.addRequest(url, mPoller.getRiderRequestingDriverResponseListener());
-        }
+        // Send kRiderRequestingDriver (type 100)
+        IGeoPoint mapCenter = mViewStateChanger.getMapView().getMapCenter();
+        Double lat = mapCenter.getLatitude();
+        Double lon = mapCenter.getLongitude();
+        String url = SERVER_URL + "?type=100&lat=" + lat.toString() + "&lon=" + lon.toString()
+                + "&user_id=" + mUserIdEditText.getText().toString();
+        mRequester.addRequest(url, mPoller.getRiderRequestingDriverResponseListener());
     }
 
     /**
