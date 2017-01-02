@@ -26,6 +26,7 @@ class Requester {
     private static Requester s = null;
     private final String TAG = "Requester";
     private RequestQueue mRequestQueue;
+
     /**
      * Define the behavior upon receiving an error from the server
      */
@@ -49,6 +50,7 @@ class Requester {
         mRequestQueue = Volley.newRequestQueue(context);
     }
 
+    // TODO the Requester should encapsulete all the request details
     void addRequest(String url, Response.Listener<JSONObject> onResponse) {
         Log.d(TAG, "Sent GET to " + url);
 

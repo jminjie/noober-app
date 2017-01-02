@@ -1,21 +1,19 @@
 package com.jminjie.noober;
 
-import android.Manifest;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
-import android.location.LocationManager;
-import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.osmdroid.api.IGeoPoint;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -41,6 +39,7 @@ class ViewStateChanger {
     private final String TAG = "ViewStateChanger";
 
     // s is the singleton instance
+    // TODO static objects shouldn't contain context?
     private static ViewStateChanger s = null;
 
     // UI elements
@@ -50,6 +49,8 @@ class ViewStateChanger {
     private IMapController mMapController;
     private Context mContext;
     private MyLocationNewOverlay mLocationOverlay;
+    // the movable marker used for choosing pickup location
+    private ImageView mPickupChooser;
     private TextView mTopText;
     private Animation mSlideLeftAnimation, mSlideRightAnimation = null;
     private final Drawable DRAWABLE_DIRECTION_ARROW = null;
@@ -70,8 +71,8 @@ class ViewStateChanger {
      * Initialize the UI elements which can be changed by the ViewStateChanger
      */
     void init(Button requestNooberbutton, Button cancelButton, MapView mapView,
-              ProgressBar progressBar, IMapController mapController, TextView topText,
-              Context context) {
+              ImageView pickupChooser, ProgressBar progressBar, IMapController mapController,
+              TextView topText, Context context) {
         Log.d(TAG, "init");
         // set member variables
         mRequestNooberButton = requestNooberbutton;
@@ -81,6 +82,7 @@ class ViewStateChanger {
         mMapController = mapController;
         mTopText = topText;
         mContext = context;
+        mPickupChooser = pickupChooser;
 
         // configure mapView
         Log.d(TAG, "init configure mapView");
@@ -126,6 +128,9 @@ class ViewStateChanger {
         mProgressBar.setVisibility(View.GONE);
         mRequestNooberButton.setEnabled(true);
         hideCancelButton();
+
+        mMapView.getOverlays().clear();
+        mPickupChooser.setVisibility(View.VISIBLE);
     }
 
     /**
@@ -134,8 +139,16 @@ class ViewStateChanger {
     void setWaitingForMatch() {
         showCancelButton();
         mRequestNooberButton.setEnabled(false);
-        mMapView.getOverlays().clear();
         mProgressBar.setVisibility(View.VISIBLE);
+
+        // Place sticky overlay on map center to indicate the set pickup location
+        final IGeoPoint center = mMapView.getMapCenter();
+        final GeoPoint pickupPoint = new GeoPoint(center.getLatitude(), center.getLongitude());
+        final OverlayItem pickupOverlayItem = new OverlayItem("Pickup location", "", pickupPoint);
+        addOverlayToMap(pickupPoint, pickupOverlayItem);
+
+        // Hide the movable marker used for choosing pickup location
+        mPickupChooser.setVisibility(View.INVISIBLE);
     }
 
     /**
@@ -154,21 +167,21 @@ class ViewStateChanger {
         final OverlayItem driverLocationOverlayItem = new OverlayItem("Your driver", "",
                 driverGeoPoint);
         driverLocationOverlayItem.setMarker(DRAWABLE_DIRECTION_ARROW);
-        ArrayList<OverlayItem> overlayItems = new ArrayList<>();
-        overlayItems.add(driverLocationOverlayItem);
-        final ItemizedIconOverlay<OverlayItem> overlay =
-                new ItemizedIconOverlay<>(overlayItems, null, mContext);
-        mMapView.getOverlays().add(overlay);
+        addOverlayToMap(driverGeoPoint, driverLocationOverlayItem);
         mMapController.animateTo(driverGeoPoint);
     }
 
-    public void addOverlayToMap(GeoPoint point) {
-
+    private void addOverlayToMap(GeoPoint point, OverlayItem item) {
+        // Put a given overlay on the map
+        ArrayList<OverlayItem> overlayItems = new ArrayList<>();
+        overlayItems.add(item);
+        final ItemizedIconOverlay<OverlayItem> overlay =
+                new ItemizedIconOverlay<>(overlayItems, null, mContext);
+        mMapView.getOverlays().add(overlay);
     }
 
     /**
      * Update the view to waiting-for-dropoff state
-     *
      */
     void setWaitingForDropoff() {
         hideCancelButton();

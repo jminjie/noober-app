@@ -13,12 +13,12 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import org.osmdroid.api.IGeoPoint;
 import org.osmdroid.api.IMapController;
-import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
@@ -61,9 +61,10 @@ public class MainActivity extends AppCompatActivity {
         final ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressBar);
         final MapView mapView = (MapView) findViewById(R.id.map);
         final IMapController mapController = mapView.getController();
+        final ImageView pickupChooser = (ImageView) findViewById(R.id.pickupMarker);
         mViewStateChanger = ViewStateChanger.getInstance();
-        mViewStateChanger.init(requestNooberButton, cancelButton, mapView, progressBar,
-                mapController, mTopText, getApplicationContext());
+        mViewStateChanger.init(requestNooberButton, cancelButton, mapView, pickupChooser,
+                progressBar, mapController, mTopText, getApplicationContext());
 
         // verify permissions
         Log.d(TAG, "onCreate getPermissions");
@@ -126,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
         mPoller.stopPolling();
 
         // send request to server to remove user from queue
-        String url = SERVER_URL + "?type=104&userid=" + mUserIdEditText.getText().toString();
+        String url = SERVER_URL + "?type=104&user_id=" + mUserIdEditText.getText().toString();
         mRequester.addRequest(url, mPoller.getRiderCancelResponseListener());
     }
 

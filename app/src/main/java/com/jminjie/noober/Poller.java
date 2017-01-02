@@ -155,7 +155,7 @@ class Poller {
                             setRiderState(RiderState.WAITING_FOR_MATCH);
                             doDelayedPoll();
                         } else {
-                            final boolean pickedUp = response.getBoolean("picked_up");
+                            final boolean pickedUp = (boolean) response.getBoolean("picked_up");
                             if (pickedUp) {
                                 // change to waiting-for-dropoff and continue polling
                                 mViewStateChanger.setWaitingForDropoff();
@@ -240,7 +240,7 @@ class Poller {
     /**
      * Stop polling the server
      */
-    public void stopPolling() {
+    void stopPolling() {
         mHandler.removeCallbacks(mPollingRequest);
     }
 
